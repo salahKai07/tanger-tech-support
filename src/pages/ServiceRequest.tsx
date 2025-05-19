@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,13 +8,17 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+import { v4 as uuidv4 } from 'uuid';
 
 const ServiceRequest = () => {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const preSelectedPlan = searchParams.get('plan');
   const preSelectedService = searchParams.get('service');
   
   const [formStep, setFormStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -55,27 +59,84 @@ const ServiceRequest = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const getAmountFromPlan = (plan: string): number => {
+    switch (plan) {
+      case 'basic': return 600;
+      case 'standard': return 1200;
+      case 'pro': return 2000;
+      default: return 0;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    // Pour cette version initiale, nous simulerons l'envoi du formulaire
-    toast.success("Demande envoyée avec succès! Nous vous contacterons bientôt.");
-    
-    // Réinitialiser le formulaire
-    setFormData({
-      fullName: '',
-      email: '',
-      phone: '',
-      company: '',
-      description: '',
-      serviceType: '',
-      plan: '',
-      file: null,
-    });
-    setFormStep(1);
-    
-    // Ici, dans une version future, nous intégrerons l'envoi du formulaire à Supabase
-    // et le système de paiement
+    try {
+      let fileUrl = null;
+      let fileName = null;
+      
+      // Upload file if it exists
+      if (formData.file) {
+        const fileExt = formData.file.name.split('.').pop();
+        fileName = `${uuidv4()}.${fileExt}`;
+        
+        const { error: uploadError, data } = await supabase.storage
+          .from('service_request_files')
+          .upload(fileName, formData.file);
+          
+        if (uploadError) {
+          throw new Error(`Erreur lors du téléchargement du fichier: ${uploadError.message}`);
+        }
+        
+        fileUrl = data?.path || null;
+      }
+      
+      // Save form data to Supabase
+      const { error } = await supabase
+        .from('service_requests')
+        .insert({
+          full_name: formData.fullName,
+          email: formData.email,
+          phone: formData.phone,
+          company: formData.company,
+          description: formData.description,
+          service_type: formData.serviceType,
+          plan: formData.plan,
+          file_url: fileUrl,
+          file_name: fileName,
+          total_amount: getAmountFromPlan(formData.plan),
+        });
+        
+      if (error) {
+        throw new Error(`Erreur lors de l'enregistrement: ${error.message}`);
+      }
+      
+      // Show success message
+      toast.success("Demande envoyée avec succès! Nous vous contacterons bientôt.");
+      
+      // Reset form and redirect to home page after delay
+      setTimeout(() => {
+        setFormData({
+          fullName: '',
+          email: '',
+          phone: '',
+          company: '',
+          description: '',
+          serviceType: '',
+          plan: '',
+          file: null,
+        });
+        setFormStep(1);
+        navigate('/');
+      }, 2000);
+      
+    } catch (error: any) {
+      console.error('Error submitting form:', error);
+      toast.error(`Une erreur est survenue: ${error.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -325,22 +386,23 @@ const ServiceRequest = () => {
                   
                   <div className="bg-it-gray p-6 rounded-lg">
                     <p className="text-center mb-4">
-                      Cette version de démonstration simule le processus de paiement.
-                      <br />Le paiement réel sera intégré lors de la connexion avec Supabase et Stripe.
+                      Pour finaliser votre demande de service, veuillez cliquer sur le bouton ci-dessous.
+                      <br />Une fois votre demande reçue, nous vous contacterons pour les détails du paiement.
                     </p>
                     
                     <div className="flex justify-center">
                       <Button 
                         type="submit" 
                         className="bg-it-blue hover:bg-it-darkBlue px-8 py-6 text-lg"
+                        disabled={isSubmitting}
                       >
-                        Finaliser la demande
+                        {isSubmitting ? 'Envoi en cours...' : 'Finaliser la demande'}
                       </Button>
                     </div>
                   </div>
                   
                   <div className="pt-4 flex justify-between">
-                    <Button type="button" variant="outline" onClick={prevStep}>
+                    <Button type="button" variant="outline" onClick={prevStep} disabled={isSubmitting}>
                       Retour
                     </Button>
                   </div>
