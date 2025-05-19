@@ -1,14 +1,29 @@
 
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, LogIn, LogOut, User, Settings } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAdmin, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const toggleMenu = () => {
     setMobileMenuOpen(!mobileMenuOpen);
+  };
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate("/");
+  };
+
+  const handleAuthClick = () => {
+    navigate("/auth");
+    if (mobileMenuOpen) {
+      setMobileMenuOpen(false);
+    }
   };
 
   return (
@@ -35,9 +50,35 @@ const Header = () => {
           <Link to="/contact" className="text-it-darkGray hover:text-it-blue transition-colors">
             Contact
           </Link>
-          <Button asChild variant="default" className="bg-it-blue hover:bg-it-darkBlue">
-            <Link to="/demande">Demande de service</Link>
-          </Button>
+          
+          {isAdmin && (
+            <Link to="/admin" className="text-it-darkGray hover:text-it-blue transition-colors">
+              Admin
+            </Link>
+          )}
+          
+          {user ? (
+            <div className="flex items-center space-x-2">
+              <Button asChild variant="default" className="bg-it-blue hover:bg-it-darkBlue">
+                <Link to="/demande">Demande de service</Link>
+              </Button>
+              <Button 
+                variant="outline" 
+                onClick={handleSignOut} 
+                className="flex items-center gap-1"
+              >
+                <LogOut size={16} /> Déconnexion
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              variant="outline" 
+              onClick={handleAuthClick} 
+              className="flex items-center gap-1"
+            >
+              <LogIn size={16} /> Connexion
+            </Button>
+          )}
         </nav>
 
         {/* Mobile Menu Button */}
@@ -62,9 +103,34 @@ const Header = () => {
             <Link to="/contact" className="text-it-darkGray py-2 hover:text-it-blue transition-colors" onClick={toggleMenu}>
               Contact
             </Link>
-            <Button asChild variant="default" className="bg-it-blue hover:bg-it-darkBlue w-full">
-              <Link to="/demande" onClick={toggleMenu}>Demande de service</Link>
-            </Button>
+            {isAdmin && (
+              <Link to="/admin" className="text-it-darkGray py-2 hover:text-it-blue transition-colors" onClick={toggleMenu}>
+                Admin
+              </Link>
+            )}
+            
+            {user ? (
+              <>
+                <Button asChild variant="default" className="bg-it-blue hover:bg-it-darkBlue w-full" onClick={toggleMenu}>
+                  <Link to="/demande">Demande de service</Link>
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleSignOut} 
+                  className="w-full flex items-center justify-center gap-1"
+                >
+                  <LogOut size={16} /> Déconnexion
+                </Button>
+              </>
+            ) : (
+              <Button 
+                variant="outline" 
+                onClick={handleAuthClick} 
+                className="w-full flex items-center justify-center gap-1"
+              >
+                <LogIn size={16} /> Connexion
+              </Button>
+            )}
           </div>
         </div>
       )}

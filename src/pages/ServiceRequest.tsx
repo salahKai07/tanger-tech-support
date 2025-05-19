@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -10,18 +9,20 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { useAuth } from '@/contexts/AuthContext';
 
 const ServiceRequest = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const preSelectedPlan = searchParams.get('plan');
   const preSelectedService = searchParams.get('service');
+  const { user, profile } = useAuth();
   
   const [formStep, setFormStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
-    fullName: '',
-    email: '',
+    fullName: profile?.full_name || '',
+    email: profile?.email || '',
     phone: '',
     company: '',
     description: '',
@@ -96,6 +97,7 @@ const ServiceRequest = () => {
       const { error } = await supabase
         .from('service_requests')
         .insert({
+          user_id: user?.id || null,
           full_name: formData.fullName,
           email: formData.email,
           phone: formData.phone,

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { 
@@ -15,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/contexts/AuthContext';
 
 type ServiceRequest = {
   id: string;
@@ -36,13 +36,15 @@ type ServiceRequest = {
 const AdminDashboard = () => {
   const [requests, setRequests] = useState<ServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(true); // For demo purposes, everyone is admin
   const [selectedRequest, setSelectedRequest] = useState<ServiceRequest | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { isAdmin, isLoading } = useAuth();
 
   useEffect(() => {
-    fetchRequests();
-  }, []);
+    if (isAdmin) {
+      fetchRequests();
+    }
+  }, [isAdmin]);
 
   const fetchRequests = async () => {
     try {
@@ -124,6 +126,16 @@ const AdminDashboard = () => {
     });
   };
 
+  // Show loading state while checking auth
+  if (isLoading) {
+    return (
+      <div className="container mx-auto py-10 flex justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-gray-900"></div>
+      </div>
+    );
+  }
+
+  // Redirect if not admin
   if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
